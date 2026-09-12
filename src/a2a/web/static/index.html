@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>a2a - Agent Chat</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2a3140;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --pro: #3fb950;
+    --cons: #f85149;
+    --comm: #a371f7;
+    --accent: #58a6ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 12px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+  }
+  header .agents { margin-left: auto; display: flex; gap: 8px; }
+  header .agent-chip {
+    font-size: 12px; padding: 3px 10px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--panel-2);
+  }
+  header .agent-chip.pro { color: var(--pro); border-color: var(--pro); }
+  header .agent-chip.cons { color: var(--cons); border-color: var(--cons); }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .pane {
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .pane-header {
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pane-header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .pane.chat .dot { background: var(--accent); }
+  .pane.comm .dot { background: var(--comm); }
+  .pane-header .sub { color: var(--muted); font-weight: 400; font-size: 12px; }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg .who {
+    font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .msg.user { align-self: flex-end; background: #1f6feb22; border: 1px solid #1f6feb55; }
+  .msg.user .who { color: var(--accent); }
+  .msg.pro { align-self: flex-start; background: rgba(63,185,80,0.08); border: 1px solid rgba(63,185,80,0.35); }
+  .msg.pro .who { color: var(--pro); }
+  .msg.cons { align-self: flex-start; background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.35); }
+  .msg.cons .who { color: var(--cons); }
+  .msg.final { align-self: stretch; max-width: 100%; background: var(--panel-2); border: 1px solid var(--border); }
+  .msg.final .who { color: var(--muted); }
+  .msg.intent {
+    align-self: stretch; max-width: 100%; font-size: 12px; color: var(--muted);
+    background: transparent; border: 1px dashed var(--border); padding: 8px 12px;
+  }
+  .msg.error { align-self: stretch; background: rgba(248,81,73,0.1); border: 1px solid var(--cons); }
+  .msg.error .who { color: var(--cons); }
+  .typing { font-size: 12px; color: var(--muted); padding: 4px 16px; }
+  .typing .blink { animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+
+  /* agent-to-agent comm panel */
+  .comm-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .comm-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    animation: slidein 0.25s ease;
+  }
+  @keyframes slidein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+  .comm-item .arrow {
+    display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 6px;
+    color: var(--comm); font-weight: 600;
+  }
+  .comm-item .arrow .from { color: var(--pro); }
+  .comm-item .arrow .from.cons { color: var(--cons); }
+  .comm-item .arrow .to { color: var(--cons); }
+  .comm-item .arrow .to.pro { color: var(--pro); }
+  .comm-item .body { white-space: pre-wrap; line-height: 1.45; }
+  .comm-item .meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .comm-empty { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+
+  /* input */
+  .input-bar {
+    padding: 12px 16px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+  }
+  .input-bar input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+  }
+  .input-bar input:focus { border-color: var(--accent); }
+  .input-bar button {
+    background: var(--accent);
+    color: #0f1115;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .input-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .examples { padding: 6px 16px; background: var(--panel); display: flex; gap: 8px; flex-wrap: wrap; }
+  .examples button {
+    background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 12px; font-size: 12px; cursor: pointer;
+  }
+  .examples button:hover { color: var(--text); border-color: var(--accent); }
+
+  /* router badges */
+  .route-banner {
+    font-size: 11px; color: var(--muted); padding: 2px 8px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .route-badge {
+    display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 8px;
+    margin-left: 6px; vertical-align: middle; font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .route-badge.lower { color: #2d9b3a; border-color: #2d9b3a55; background: #2d9b3a1a; }
+  .route-badge.higher { color: #d29922; border-color: #d2992255; background: #d299221a; }
+  .route-line {
+    font-size: 11px; color: var(--muted); padding: 2px 0 0 0; margin-top: 4px;
+  }
+  .route-line .score { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>a2a</h1>
+  <span class="badge">pro/cons debate</span>
+  <span class="route-banner" id="router-banner">router: …</span>
+  <div class="agents" id="agents"></div>
+</header>
+
+<main>
+  <section class="pane chat">
+    <div class="pane-header"><span class="dot"></span>Chat <span class="sub">- your interface to the agents</span></div>
+    <div class="messages" id="messages">
+      <div class="msg intent">
+        <div class="who">welcome</div>
+        Ask for pros and cons of any topic. e.g. "Give me pros and cons of remote work."
+      </div>
+    </div>
+    <div class="typing" id="typing" style="display:none"><span class="blink">●</span> agents are thinking…</div>
+  </section>
+
+  <section class="pane comm">
+    <div class="pane-header"><span class="dot"></span>Agent-to-Agent <span class="sub">- live communication</span></div>
+    <div class="comm-list" id="comm">
+      <div class="comm-empty">No agent-to-agent messages yet. Start a debate to see agents exchange rebuttals.</div>
+    </div>
+  </section>
+</main>
+
+<div class="examples" id="examples"></div>
+<div class="input-bar">
+  <input id="input" type="text" placeholder="Ask: pros and cons of …" autofocus />
+  <button id="send" type="button">Send</button>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const commEl = document.getElementById('comm');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const typingEl = document.getElementById('typing');
+const examplesEl = document.getElementById('examples');
+const agentsEl = document.getElementById('agents');
+const routerBannerEl = document.getElementById('router-banner');
+
+// Pending route decision to attach to the next message from this agent.
+const pendingRoute = {};  // agent -> route decision dict
+
+const EXAMPLES = [
+  "Give me pros and cons of remote work",
+  "Pros and cons of using microservices",
+  "What are the advantages and disadvantages of nuclear energy?",
+  "Debate: TypeScript vs JavaScript",
+  "Argue for and against banning smartphones in schools",
+];
+
+EXAMPLES.forEach(ex => {
+  const b = document.createElement('button');
+  b.textContent = ex;
+  b.onclick = () => { inputEl.value = ex; send(); };
+  examplesEl.appendChild(b);
+});
+
+fetch('/api/agents').then(r => r.json()).then(list => {
+  list.forEach(a => {
+    const chip = document.createElement('div');
+    chip.className = 'agent-chip ' + a.name;
+    chip.textContent = a.name;
+    chip.title = a.description + ' | skills: ' + (a.skills||[]).join(', ');
+    agentsEl.appendChild(chip);
+  });
+}).catch(() => {});
+
+fetch('/api/router').then(r => r.json()).then(cfg => {
+  if (cfg && cfg.lower_model) {
+    routerBannerEl.textContent =
+      'router: lower=' + cfg.lower_model + ' · higher=' + cfg.higher_model;
+    routerBannerEl.title =
+      'thresholds: lower<=' + cfg.thresholds.lower +
+      ', higher>=' + cfg.thresholds.higher +
+      ', band=' + cfg.thresholds.classifier_band;
+  } else {
+    routerBannerEl.textContent = 'router: off (single model)';
+  }
+}).catch(() => { routerBannerEl.textContent = 'router: n/a'; });
+
+function addMessage(cls, who, content, route) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  const whoDiv = document.createElement('div');
+  whoDiv.className = 'who';
+  whoDiv.textContent = who;
+  if (route && route.tier) {
+    const badge = document.createElement('span');
+    badge.className = 'route-badge ' + route.tier;
+    const short = route.model ? route.model.split(':')[0] : route.tier;
+    badge.textContent = (route.tier === 'lower' ? 'small' : 'large') + ': ' + short;
+    badge.title = 'model: ' + (route.model || '') +
+      '\nmethod: ' + (route.method || '') +
+      '\nscore: ' + (route.score != null ? route.score.toFixed(3) : '?') +
+      '\nreason: ' + (route.reason || '');
+    whoDiv.appendChild(badge);
+  }
+  const body = document.createElement('div');
+  body.textContent = content;
+  div.appendChild(whoDiv); div.appendChild(body);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function addComm(ev, route) {
+  const empty = commEl.querySelector('.comm-empty');
+  if (empty) empty.remove();
+  const item = document.createElement('div');
+  item.className = 'comm-item';
+  const fromClass = ev.agent === 'cons' ? 'cons' : '';
+  const toClass = ev.to === 'pro' ? 'pro' : '';
+  let badgeHtml = '';
+  if (route && route.tier) {
+    const short = route.model ? route.model.split(':')[0] : route.tier;
+    badgeHtml = ' <span class="route-badge ' + route.tier + '">' +
+      (route.tier === 'lower' ? 'small' : 'large') + ': ' + esc(short) + '</span>';
+  }
+  item.innerHTML =
+    '<div class="arrow"><span class="from ' + fromClass + '">' + esc(ev.agent) + '</span> → ' +
+    '<span class="to ' + toClass + '">' + esc(ev.to) + '</span>' +
+    (ev.metadata && ev.metadata.kind ? ' · ' + esc(ev.metadata.kind) : '') +
+    badgeHtml + '</div>' +
+    '<div class="body">' + esc(ev.content) + '</div>' +
+    '<div class="meta">topic: ' + esc(ev.topic || '') + '</div>';
+  commEl.appendChild(item);
+  commEl.scrollTop = commEl.scrollHeight;
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setBusy(b) {
+  sendBtn.disabled = b; inputEl.disabled = b;
+  typingEl.style.display = b ? 'block' : 'none';
+  if (!b) inputEl.focus();
+}
+
+async function send() {
+  const message = inputEl.value.trim();
+  if (!message) return;
+  inputEl.value = '';
+  addMessage('user', 'you', message);
+  setBusy(true);
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buffer.indexOf('\n\n')) >= 0) {
+        const frame = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        handleFrame(frame);
+      }
+    }
+  } catch (err) {
+    addMessage('error', 'error', String(err));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function handleFrame(frame) {
+  if (!frame.startsWith('data: ')) return;
+  const json = frame.slice(6).trim();
+  if (!json) return;
+  let ev;
+  try { ev = JSON.parse(json); } catch { return; }
+  switch (ev.type) {
+    case 'user': break; // already added locally
+    case 'route':
+      // Stash the route decision; it attaches to the next event from this agent.
+      if (ev.agent) pendingRoute[ev.agent] = ev.metadata || {};
+      break;
+    case 'intent':
+      addMessage('intent', 'intent',
+        'topic: ' + (ev.topic || '?') + ' · side: ' + (ev.side || 'both') +
+        (ev.content ? ' · ' + ev.content : ''),
+        ev.agent ? pendingRoute[ev.agent] : null);
+      if (ev.agent) delete pendingRoute[ev.agent];
+      break;
+    case 'agent_message':
+      addMessage(ev.side === 'pro' ? 'pro' : 'cons', ev.agent, ev.content,
+        ev.agent ? pendingRoute[ev.agent] : null);
+      if (ev.agent) delete pendingRoute[ev.agent];
+      break;
+    case 'agent_comm':
+      addComm(ev, ev.agent ? pendingRoute[ev.agent] : null);
+      if (ev.agent) delete pendingRoute[ev.agent];
+      break;
+    case 'final':
+      addMessage('final', 'debate summary', ev.content);
+      break;
+    case 'error':
+      addMessage('error', 'error', ev.content);
+      break;
+  }
+}
+
+sendBtn.onclick = send;
+inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+</script>
+</body>
+</html>
