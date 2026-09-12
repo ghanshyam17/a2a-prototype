@@ -10,3 +10,10 @@ dist/
 build/
 .mypy_cache/
 .ruff_cache/
+
+# terraform working dirs (provider binaries are 200MB+)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
