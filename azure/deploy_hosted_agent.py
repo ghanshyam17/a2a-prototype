@@ -36,9 +36,15 @@ from azure.ai.projects.models import (
 from azure.identity import DefaultAzureCredential
 
 HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parent.parent
 SRC = (HERE / "hosted-agent" / "src").resolve()
 
 EXCLUDED = {".git", ".venv", "__pycache__", ".env", "deploy_hosted_agent.py", ".pytest_cache"}
+
+# Repo sources vendored into the zip as _vendor/<pkg> (imported at runtime).
+VENDOR_SOURCES = [
+    (REPO_ROOT / "src" / "a2a", "a2a"),
+]
 
 
 def create_code_zip(source_dir: Path) -> Path:
@@ -50,6 +56,13 @@ def create_code_zip(source_dir: Path) -> Path:
             if any(part in EXCLUDED for part in path.parts):
                 continue
             zf.write(path, path.relative_to(source_dir))
+        for src_dir, pkg_name in VENDOR_SOURCES:
+            if not src_dir.is_dir():
+                raise RuntimeError(f"vendored source missing: {src_dir}")
+            for path in src_dir.rglob("*"):
+                if not path.is_file() or "__pycache__" in path.parts:
+                    continue
+                zf.write(path, Path("_vendor") / pkg_name / path.relative_to(src_dir))
     return zip_path
 
 
