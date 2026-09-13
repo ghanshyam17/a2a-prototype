@@ -5,3 +5,5 @@ mcp>=1.24,<2
 httpx
 python-dotenv
 numpy>=1.26
+pydantic-settings>=2.0
+openai>=1.40

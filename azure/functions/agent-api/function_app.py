@@ -107,20 +107,28 @@ def agent_api(req: func.HttpRequest) -> func.HttpResponse:
         return _json({"error": "message is required"}, 400)
 
     if action == "route":
-        b = _bridge()
-        score, signals = b.score(message)
-        decision = b.decide(
-            message,
-            lower_model_name=settings.lower_model,
-            higher_model_name=settings.higher_model,
-            classifier_llm=None,
-        )
-        return _json(
-            {"action": "route", "score": score, "signals": signals, "decision": decision.to_dict()}
-        )
+        try:
+            b = _bridge()
+            score, signals = b.score(message)
+            decision = b.decide(
+                message,
+                lower_model_name=settings.lower_model,
+                higher_model_name=settings.higher_model,
+                classifier_llm=None,
+            )
+            return _json(
+                {"action": "route", "score": score, "signals": signals, "decision": decision.to_dict()}
+            )
+        except Exception as exc:  # noqa: BLE001 - structured error, not a bare 500
+            logger.exception("route action failed")
+            return _json({"action": "route", "error": f"{type(exc).__name__}: {exc}"}, 500)
 
     if action != "debate":
         return _json({"error": f"unknown action '{action}'"}, 400)
 
-    events = [e.to_dict() for e in _orchestrator().stream(message)]
-    return _json({"action": "debate", "events": events})
+    try:
+        events = [e.to_dict() for e in _orchestrator().stream(message)]
+        return _json({"action": "debate", "events": events})
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("debate action failed")
+        return _json({"action": "debate", "error": f"{type(exc).__name__}: {exc}"}, 500)

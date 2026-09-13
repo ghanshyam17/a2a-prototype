@@ -1,31 +1,30 @@
 #!/usr/bin/env bash
-# Assemble + deploy the Function app (Consumption plan -> $0 when idle).
-# Prereqs: az login; func CLI (npm i -g azure-functions-core-tools@4 --unsafe-perm true)
+# Assemble + deploy the a2a-debate Function app via `func publish` (remote build).
+# Python v2 model: function_app.py sits at the app ROOT.
 set -euo pipefail
-
 RG="${RG:-my-foundry-rg}"
-LOC="${LOC:-eastus}"
-PREFIX="${PREFIX:-a2a}"
-APP="${APP:-${PREFIX}-agent-api}"
-
-ST=$(az storage account list -g "$RG" --query "[?starts_with(name,'${PREFIX}')].name" -o tsv | head -1)
-if [ -z "$ST" ]; then
-  ST="${PREFIX}$(head -c6 /dev/urandom | base64 | tr -dc a-z0-9 | head -c 6)st"
-  az storage account create -g "$RG" -n "$ST" -l "$LOC" --sku Standard_LRS >/dev/null
-fi
-
-if ! az functionapp show -g "$RG" -n "$APP" >/dev/null 2>&1; then
-  az functionapp create -g "$RG" -n "$APP" --storage-account "$ST" \
-    --consumption-plan-location "$LOC" --runtime python --runtime-version 3.11 \
-    --functions-version 4 --os-type Linux >/dev/null
-fi
+APP="${APP:-a2a-agent-api}"
+FUNC_BIN="${FUNC_BIN:-$HOME/bin/func-cli/func}"
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
-cp -R "$ROOT/azure/functions/"* "$STAGE/"
+
+cp "$ROOT/azure/functions/host.json" "$STAGE/"
+cp "$ROOT/azure/functions/requirements.txt" "$STAGE/"
+cp "$ROOT/azure/functions/agent-api/function_app.py" "$STAGE/"
 mkdir -p "$STAGE/_vendor"
 cp -R "$ROOT/src/a2a" "$STAGE/_vendor/a2a"
 
+# a2a's router bridge imports agentic_router (+ components_core) from the
+# sibling monorepo checkout; vendor it when present (heuristic path only).
+SIBLING="$ROOT/../agent-components"
+[ -d "$SIBLING/components/agentic-router/agentic_router" ] && \
+  cp -R "$SIBLING/components/agentic-router/agentic_router" "$STAGE/_vendor/agentic_router"
+[ -d "$SIBLING/core/src/components_core" ] && \
+  cp -R "$SIBLING/core/src/components_core" "$STAGE/_vendor/components_core"
+
+find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+
 echo "deploying $APP from $STAGE"
-(cd "$STAGE" && func azure functionapp publish "$APP" --python)
+(cd "$STAGE" && "$FUNC_BIN" azure functionapp publish "$APP" --python) | tail -8

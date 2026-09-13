@@ -58,10 +58,25 @@ _bootstrap_imports()
 from a2a.agents.llm import make_llm  # noqa: E402
 from a2a.config import settings  # noqa: E402
 from a2a.debate.orchestrator import DebateOrchestrator  # noqa: E402
-from a2a.router import AgenticRouterBridge  # noqa: E402
 
 _ORCH: DebateOrchestrator | None = None
-_BRIDGE: AgenticRouterBridge | None = None
+_BRIDGE = None  # lazy: AgenticRouterBridge needs the vendored agentic_router
+
+
+def _bridge():
+    global _BRIDGE
+    if _BRIDGE is None:
+        try:
+            from a2a.router import AgenticRouterBridge
+
+            _BRIDGE = AgenticRouterBridge(
+                lower_threshold=settings.router_lower_threshold,
+                higher_threshold=settings.router_higher_threshold,
+                classifier_band=settings.router_classifier_band,
+            )
+        except Exception as exc:  # noqa: BLE001 - vendored sibling missing
+            logger.warning("router bridge unavailable: %s", exc)
+    return _BRIDGE
 
 
 def _orchestrator() -> DebateOrchestrator:
@@ -102,6 +117,10 @@ async def score_route(
 
     def _run() -> str:
         b = _bridge()
+        if b is None:
+            return json.dumps(
+                {"error": "router unavailable: agentic_router not vendored in this sandbox"},
+            )
         score, signals = b.score(message)
         decision = b.decide(
             message,

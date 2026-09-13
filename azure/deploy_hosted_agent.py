@@ -36,7 +36,7 @@ from azure.ai.projects.models import (
 from azure.identity import DefaultAzureCredential
 
 HERE = Path(__file__).resolve().parent
-REPO_ROOT = HERE.parent.parent
+REPO_ROOT = HERE.parent
 SRC = (HERE / "hosted-agent" / "src").resolve()
 
 EXCLUDED = {".git", ".venv", "__pycache__", ".env", "deploy_hosted_agent.py", ".pytest_cache"}
@@ -44,6 +44,12 @@ EXCLUDED = {".git", ".venv", "__pycache__", ".env", "deploy_hosted_agent.py", ".
 # Repo sources vendored into the zip as _vendor/<pkg> (imported at runtime).
 VENDOR_SOURCES = [
     (REPO_ROOT / "src" / "a2a", "a2a"),
+]
+# Optional sibling packages (a2a's router bridge imports agentic_router):
+SIBLING = REPO_ROOT.parent / "agent-components"
+OPTIONAL_SOURCES = [
+    (SIBLING / "components" / "agentic-router" / "agentic_router", "agentic_router"),
+    (SIBLING / "core" / "src" / "components_core", "components_core"),
 ]
 
 
@@ -59,6 +65,14 @@ def create_code_zip(source_dir: Path) -> Path:
         for src_dir, pkg_name in VENDOR_SOURCES:
             if not src_dir.is_dir():
                 raise RuntimeError(f"vendored source missing: {src_dir}")
+            for path in src_dir.rglob("*"):
+                if not path.is_file() or "__pycache__" in path.parts:
+                    continue
+                zf.write(path, Path("_vendor") / pkg_name / path.relative_to(src_dir))
+        for src_dir, pkg_name in OPTIONAL_SOURCES:
+            if not src_dir.is_dir():
+                print(f"note: optional vendored source missing: {src_dir}")
+                continue
             for path in src_dir.rglob("*"):
                 if not path.is_file() or "__pycache__" in path.parts:
                     continue
@@ -100,7 +114,7 @@ def main() -> None:
                 cpu="0.5",
                 memory="1Gi",
                 code_configuration=CodeConfiguration(
-                    runtime="python_3_11",
+                    runtime="python_3_13",
                     entry_point=["python", "main.py"],
                     dependency_resolution=CodeDependencyResolution.REMOTE_BUILD,
                 ),

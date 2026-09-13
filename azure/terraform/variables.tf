@@ -65,11 +65,24 @@ variable "tags" {
 }
 
 locals {
+  # Shared resources (project + model) carry IDENTICAL tags in all three
+  # stacks so concurrent applies never fight over tag values.
+  shared_tags = {
+    project      = "agent-lab"
+    repo         = "shared"
+    owner        = "ghanshyam17"
+    environment  = "learning"
+    managed-by   = "terraform"
+    cost-posture = "zero-idle"
+  }
   common_tags = merge(
     {
-      project        = "a2a-prototype"
-      managed-by     = "terraform"
-      cost-posture   = "zero-idle"
+      project      = "a2a-prototype"
+      repo         = "github.com/ghanshyam17/a2a-prototype"
+      owner        = "ghanshyam17"
+      environment  = "learning"
+      managed-by   = "terraform"
+      cost-posture = "zero-idle"
     },
     var.tags,
   )
