@@ -42,7 +42,7 @@ variable "model_sku" {
 
 variable "model_capacity" {
   type        = number
-  default     = 1
+  default     = 10
   description = "Deployment capacity (keep at 1 for rare-call workloads)."
 }
 

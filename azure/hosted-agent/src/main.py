@@ -86,17 +86,6 @@ def _orchestrator() -> DebateOrchestrator:
     return _ORCH
 
 
-def _bridge() -> AgenticRouterBridge:
-    global _BRIDGE
-    if _BRIDGE is None:
-        _BRIDGE = AgenticRouterBridge(
-            lower_threshold=settings.router_lower_threshold,
-            higher_threshold=settings.router_higher_threshold,
-            classifier_band=settings.router_classifier_band,
-        )
-    return _BRIDGE
-
-
 # -- Tools --------------------------------------------------------------------
 async def run_debate(
     message: Annotated[str, "The claim or debate topic to argue about."],
