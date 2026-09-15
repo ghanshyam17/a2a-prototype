@@ -1,0 +1,15 @@
+# a2a — Azure Functions requirements (lean, stub-LLM default)
+azure-functions>=1.18.0
+
+# Foundry SDK
+azure-ai-projects>=2.3.0
+azure-ai-agents>=1.0.0
+azure-identity>=1.19.0
+
+# Engine runtime (numpy for vector memory; langgraph for supervisor)
+numpy>=1.26.0
+langgraph>=0.2.0
+langchain-core>=0.3.0
+fastapi>=0.115.0
+pydantic>=2.9.0
+httpx>=0.27.0
